@@ -6,7 +6,7 @@ WORKDIR $ROOT
 
 RUN addgroup --system nginx \
     && adduser --system --disabled-login --ingroup nginx --no-create-home --home /nonexistent --gecos "nginx user" --shell /bin/false --uid 101 nginx \
-    && apt-get update && apt-get install -y --no-install-recommends nginx libpq-dev curl cron vim gettext zip unzip supervisor \
+    && apt-get update && apt-get install -y --no-install-recommends nginx libpq-dev curl cron vim gettext zip unzip \
     && ln -sf /dev/stdout /var/log/nginx/access.log && ln -sf /dev/stderr /var/log/nginx/error.log
 
 COPY --from=liaracloud/supercronic:v0.1.11 /usr/local/bin/supercronic /usr/local/bin/supercronic
@@ -18,6 +18,8 @@ COPY supervisord.conf /etc/supervisord.conf
 
 ONBUILD COPY . .
 
+ONBUILD ARG __DJANGO_MIRROR=true
+ONBUILD ARG __DJANGO_MIRRORURL
 ONBUILD ARG __DJANGO_SETTINGSFILE
 ONBUILD ARG __DJANGO_MODIFY_SETTINGS=true
 ONBUILD ARG __DJANGO_COLLECTSTATIC=true
@@ -25,6 +27,8 @@ ONBUILD ARG __DJANGO_COMPILEMESSAGES=false
 ONBUILD ARG __DJANGO_TIMEZONE=Asia/Tehran
 ONBUILD ENV TZ=${__DJANGO_TIMEZONE} \
   __DJANGO_SETTINGSFILE=${__DJANGO_SETTINGSFILE}
+ONBUILD ENV __DJANGO_MIRROR=${__DJANGO_MIRROR}
+ONBUILD ENV __DJANGO_MIRRORURL=${__DJANGO_MIRRORURL}
 
 ONBUILD RUN if [ -e liara_nginx.conf ]; \
   then \
@@ -36,9 +40,7 @@ fi \
   && echo '> Configuring timezone:' $TZ && ln -snf /usr/share/zoneinfo/$TZ /etc/localtime && \
   echo $TZ > /etc/timezonero
 
-ONBUILD RUN pip install --disable-pip-version-check --no-cache-dir -r requirements.txt \
-  && pip install --disable-pip-version-check --no-cache-dir dj-database-url 'gunicorn==20.1.0' \
-  && chmod +x /usr/local/lib/liara/*.sh \
+ONBUILD RUN chmod +x /usr/local/lib/liara/*.sh;/usr/local/lib/liara/preconfigure.sh \
   && /usr/local/lib/liara/configure.sh
 
 ONBUILD ARG __CRON
